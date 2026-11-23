@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Genie Agent Monitoring — End-to-end trace accelerator</title>
+<style>
+:root{
+  --bg:#f5f7fa; --panel:#ffffff; --ink:#111927; --muted:#4a5768; --faint:#7c8a9a; --line:#e2e8f0;
+  --accent:#FF3621; --accent-soft:rgba(255,54,33,.08); --good:#1f9d55; --bad:#d64545; --warn:#b7791f; --info:#2563eb;
+  --code:#0f172a; --code-ink:#e2e8f0;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#0d1117; --panel:#161b22; --ink:#e8edf3; --muted:#9aa7b6; --faint:#6b7887; --line:#2a3340;
+         --accent-soft:rgba(255,54,33,.14); --good:#3fb950; --bad:#f0616d; --warn:#e3b341; --info:#60a5fa; --code:#0b0f14; }
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.55;font-size:15px}
+a{color:var(--accent);text-decoration:none}
+code,.mono{font-family:var(--mono);font-size:.86em}
+code{background:var(--accent-soft);padding:.1em .35em;border-radius:4px}
+/* nav */
+nav.top{position:sticky;top:0;z-index:10;background:color-mix(in srgb,var(--panel) 92%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+nav.top .in{max-width:1180px;margin:0 auto;display:flex;align-items:center;gap:18px;padding:10px 24px;overflow-x:auto}
+nav.top .brand{font-weight:700;white-space:nowrap;display:flex;align-items:center;gap:8px}
+nav.top .brand i{width:10px;height:10px;border-radius:2px;background:var(--accent);display:inline-block}
+nav.top a{color:var(--muted);font-size:13px;white-space:nowrap}
+nav.top a:hover{color:var(--ink)}
+main{max-width:1180px;margin:0 auto;padding:0 24px 80px}
+section{padding:56px 0 8px;scroll-margin-top:56px}
+h1{font-size:40px;line-height:1.15;margin:0 0 14px;letter-spacing:-.02em}
+h2{font-size:26px;margin:0 0 6px;letter-spacing:-.01em}
+h3{font-size:16px;margin:0 0 6px}
+.eyebrow{color:var(--accent);font-weight:700;font-size:12px;letter-spacing:.12em;text-transform:uppercase;margin-bottom:8px}
+.lede{color:var(--muted);font-size:17px;max-width:820px}
+.sub{color:var(--muted);margin:0 0 22px;max-width:860px}
+.grid{display:grid;gap:16px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))} .g3{grid-template-columns:repeat(3,minmax(0,1fr))} .g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media (max-width:900px){.g2,.g3,.g4{grid-template-columns:1fr} h1{font-size:30px}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px}
+.card p{margin:.25em 0 0;color:var(--muted);font-size:14px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:999px;border:1px solid var(--line);color:var(--muted);background:var(--panel);white-space:nowrap}
+.chip.good{color:var(--good);border-color:color-mix(in srgb,var(--good) 40%,transparent);background:color-mix(in srgb,var(--good) 9%,transparent)}
+.chip.bad{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 40%,transparent);background:color-mix(in srgb,var(--bad) 9%,transparent)}
+.chip.warn{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,transparent);background:color-mix(in srgb,var(--warn) 10%,transparent)}
+.chip.info{color:var(--info);border-color:color-mix(in srgb,var(--info) 40%,transparent);background:color-mix(in srgb,var(--info) 9%,transparent)}
+.chip.accent{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 40%,transparent);background:var(--accent-soft)}
+/* hero */
+.hero{padding:64px 0 24px}
+.hero .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+.pipeline-strip{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:26px}
+.pipeline-strip span.step{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-weight:600;font-size:13px}
+.pipeline-strip span.arrow{color:var(--faint)}
+/* stats */
+.stat .n{font-size:30px;font-weight:700;letter-spacing:-.02em}
+.stat .l{color:var(--muted);font-size:13px}
+/* tables */
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);font-weight:600}
+.tablewrap{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow-x:auto}
+/* architecture */
+.arch{display:grid;grid-template-columns:1.45fr 60px 1fr 60px 1fr 60px 1fr;gap:0;align-items:stretch}
+.arch .col{display:flex;flex-direction:column;gap:12px}
+.arch .conn{display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--faint);font-size:10px;text-align:center;gap:4px}
+.arch .conn b{font-size:20px;font-weight:400}
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;flex:1}
+.stage .hd{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.stage .num{background:var(--accent);color:#fff;border-radius:6px;font-size:11px;font-weight:700;padding:2px 7px}
+.stage .desc{color:var(--faint);font-size:12px;margin-bottom:10px}
+.node{border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-top:8px;background:var(--bg)}
+.node .t{font-size:12.5px;font-weight:600}
+.node .t.mono{font-family:var(--mono);font-size:11px;font-weight:500;overflow-wrap:anywhere}
+.node .d{font-size:11.5px;color:var(--muted)}
+@media (max-width:1000px){.arch{grid-template-columns:1fr}.arch .conn{flex-direction:row;padding:6px 0}.arch .conn b{transform:rotate(90deg)}}
+/* trace walkthrough */
+.turns{display:grid;gap:14px}
+.turn{display:grid;grid-template-columns:120px 1fr;gap:16px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
+.turn .when{font-size:12px;color:var(--faint)}
+.turn .when b{display:block;color:var(--ink);font-size:13px}
+.turn .q{font-weight:600;margin-bottom:6px}
+.kv{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+pre{background:var(--code);color:var(--code-ink);border-radius:8px;padding:12px 14px;font-family:var(--mono);font-size:12px;line-height:1.5;overflow-x:auto;margin:8px 0 0}
+pre .hl{background:rgba(255,54,33,.35);border-radius:3px;padding:0 3px}
+@media (max-width:700px){.turn{grid-template-columns:1fr}}
+/* mock app */
+.mock{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.06)}
+.mock .bar{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);font-size:13px}
+.mock .bar .dot{width:9px;height:9px;border-radius:50%;background:var(--line)}
+.mock .bar .tab{padding:4px 10px;border-radius:6px;color:var(--muted)}
+.mock .bar .tab.on{background:var(--ink);color:var(--panel)}
+.mock .body{padding:16px;display:grid;gap:14px}
+.mock .filters{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:10px}
+.mock .sel{border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:12.5px;color:var(--muted);background:var(--bg)}
+.mock .sel small{display:block;font-size:10.5px;color:var(--faint)}
+.mock .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+.mock .kpi{border:1px solid var(--line);border-radius:8px;padding:10px}
+.mock .kpi .v{font-size:20px;font-weight:700}
+.mock .kpi .s{font-size:10.5px;color:var(--faint)}
+.mock .row{display:grid;grid-template-columns:110px 1fr 150px 90px 40px;gap:10px;align-items:center;padding:9px 4px;border-top:1px solid var(--line);font-size:12.5px}
+.mock .row .p{font-weight:600}
+.mock .row .a{color:var(--faint);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mock .split{display:grid;grid-template-columns:1.25fr 1fr;gap:14px}
+.mock .drawer{border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--bg)}
+.mock .drawer .tabs{display:flex;gap:6px;margin:8px 0}
+.mock .drawer .tabs span{font-size:11.5px;padding:3px 8px;border-radius:6px;border:1px solid var(--line)}
+.mock .drawer .tabs span.on{background:var(--panel);font-weight:600}
+@media (max-width:900px){.mock .filters,.mock .kpis{grid-template-columns:repeat(2,1fr)}.mock .split{grid-template-columns:1fr}.mock .row{grid-template-columns:1fr}}
+.bars{display:flex;align-items:flex-end;gap:10px;height:90px;padding:6px 4px 0;border-bottom:1px solid var(--line)}
+.bars .b{flex:1;display:flex;flex-direction:column-reverse;border-radius:4px 4px 0 0;overflow:hidden}
+.bars .b i{display:block}
+.legend{display:flex;gap:14px;font-size:11px;color:var(--faint);margin-top:6px}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+/* misc */
+ul.clean{margin:8px 0 0;padding-left:18px;color:var(--muted);font-size:14px}
+ul.clean li{margin:4px 0}
+.callout{border-left:3px solid var(--accent);background:var(--accent-soft);border-radius:0 10px 10px 0;padding:12px 16px;margin:16px 0;font-size:14px}
+.legendrow{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 14px;font-size:12.5px;color:var(--muted);align-items:center}
+footer{max-width:1180px;margin:0 auto;padding:30px 24px 60px;color:var(--faint);font-size:12.5px;border-top:1px solid var(--line)}
+.ico{width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px}
+</style>
+</head>
+<body>
+
+<nav class="top"><div class="in">
+  <span class="brand"><i></i>Genie Agent Monitoring</span>
+  <a href="#why">Why</a><a href="#captured">What's captured</a><a href="#trace">Sample trace</a>
+  <a href="#architecture">Architecture</a><a href="#app">The app</a><a href="#native">Native vs. built</a>
+  <a href="#model">Data model</a><a href="#deploy">Deploy</a><a href="#limits">Limits &amp; FAQ</a>
+</div></nav>
+
+<main>
+
+<!-- HERO -->
+<section class="hero" id="top">
+  <div class="eyebrow">Observability accelerator · Databricks AI/BI Genie</div>
+  <h1>Every Genie answer, fully traceable — from prompt to SQL to feedback.</h1>
+  <p class="lede">A lightweight, code-first accelerator that captures each question asked of a Genie Agent into a single governed Delta table — prompt, Genie's reasoning, generated SQL, execution stats, tables and metric views read, the answer, user feedback and the audit trail — plus a Databricks App to monitor it across agents.</p>
+  <div class="chips">
+    <span class="chip accent">Built on public APIs + system tables</span>
+    <span class="chip">Unity Catalog governed</span>
+    <span class="chip">Serverless, every 30 min</span>
+    <span class="chip">Chat &amp; Agent mode</span>
+    <span class="chip">Open source code you own</span>
+  </div>
+  <div class="pipeline-strip" aria-label="Trace chain">
+    <span class="step">Prompt</span><span class="arrow">→</span>
+    <span class="step">Reasoning</span><span class="arrow">→</span>
+    <span class="step">SQL</span><span class="arrow">→</span>
+    <span class="step">Execution</span><span class="arrow">→</span>
+    <span class="step">Lineage</span><span class="arrow">→</span>
+    <span class="step">Answer</span><span class="arrow">→</span>
+    <span class="step">Feedback</span><span class="arrow">→</span>
+    <span class="step">Audit</span>
+  </div>
+  <div class="callout"><b>What this is:</b> a field-built reference solution assembled from documented Databricks capabilities (Genie Conversation API, system tables, Lakeflow Jobs, Databricks Apps). It is <b>not</b> a separate Databricks product feature — you deploy and own the code.</div>
+</section>
+
+<!-- WHY -->
+<section id="why">
+  <div class="eyebrow">The problem</div>
+  <h2>Genie already logs a lot — but it's spread across four places</h2>
+  <p class="sub">Answering "who asked what, what did Genie run, on which data, and was the answer any good?" today means stitching together sources that each hold one piece of the story.</p>
+  <div class="grid g4">
+    <div class="card"><h3>Audit log</h3><p>Who did what, when, from where — but <b>IDs only</b>; no prompt or answer text.</p></div>
+    <div class="card"><h3>Query history</h3><p>The SQL Genie executed, who ran it, duration, rows — but not the question that produced it.</p></div>
+    <div class="card"><h3>Lineage</h3><p>Which tables and metric views were read — keyed by statement, not by conversation.</p></div>
+    <div class="card"><h3>Conversation API</h3><p>The prompt, answer, reasoning and feedback notes — but lives in the agent, not in a governed table.</p></div>
+  </div>
+  <div class="grid g3" style="margin-top:16px">
+    <div class="card"><h3>Compliance &amp; audit</h3><p>Retain the full question/answer record in your own table, independent of conversation deletion.</p></div>
+    <div class="card"><h3>Answer quality</h3><p>Find thumbs-down answers, read the reviewer's note, and see the exact SQL and tables behind them.</p></div>
+    <div class="card"><h3>Adoption &amp; cost</h3><p>Questions per agent, users, SQL latency and rows scanned — one place, filterable.</p></div>
+  </div>
+</section>
+
+<!-- CAPTURED -->
+<section id="captured">
+  <div class="eyebrow">What's captured</div>
+  <h2>One row per Genie message</h2>
+  <p class="sub">Each message in <code>&lt;catalog&gt;.genie_monitoring.message_trace</code> carries the full chain. Results from a validation run against a demo health-plan agent (synthetic data):</p>
+  <div class="grid g4">
+    <div class="card stat"><div class="n">130</div><div class="l">messages traced across 114 conversations</div></div>
+    <div class="card stat"><div class="n">100%</div><div class="l">of Agent-mode messages with answer + step-by-step tool trace (~15 steps each)</div></div>
+    <div class="card stat"><div class="n">99%</div><div class="l">of SQL-backed messages joined to execution stats</div></div>
+    <div class="card stat"><div class="n">76%</div><div class="l">of Agent answers traced to a governed <b>metric view</b> via lineage</div></div>
+  </div>
+  <div class="tablewrap" style="margin-top:16px">
+    <table>
+      <thead><tr><th>Trace element</th><th>Source</th><th>Example fields</th></tr></thead>
+      <tbody>
+        <tr><td><b>Prompt &amp; answer</b></td><td>Genie Conversation API</td><td class="mono">prompt_text, answer_text, status, error</td></tr>
+        <tr><td><b>Genie's reasoning</b></td><td>Conversation API (query attachment)</td><td class="mono">thoughts[]: understanding, data sourcing, steps</td></tr>
+        <tr><td><b>Agent-mode steps</b></td><td>Conversation API — agent items</td><td class="mono">agent_steps[]: reasoning, tool_call (execute_sql…), tool_output</td></tr>
+        <tr><td><b>Generated SQL</b></td><td>Conversation API</td><td class="mono">queries[]: sql, statement_id, row_count</td></tr>
+        <tr><td><b>Execution</b></td><td><code>system.query.history</code></td><td class="mono">exec[]: executed_by, duration_ms, read_rows, warehouse_id</td></tr>
+        <tr><td><b>Data used</b></td><td><code>system.access.table_lineage</code></td><td class="mono">lineage_sources[]: name, type (TABLE / METRIC_VIEW)</td></tr>
+        <tr><td><b>Feedback</b></td><td>Conversation API — message comments</td><td class="mono">feedback_rating, feedback_notes[], feedback_ts</td></tr>
+        <tr><td><b>Audit</b></td><td><code>system.access.audit</code> (aibiGenie)</td><td class="mono">audit_create_ts, source_ip, user_agent, user_email</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- SAMPLE TRACE -->
+<section id="trace">
+  <div class="eyebrow">Sample trace</div>
+  <h2>A wrong answer, caught and fixed — visible end to end</h2>
+  <p class="sub">Three turns of one conversation with a demo health-plan agent (synthetic data, user anonymized). The trace shows not just <i>that</i> the first answer was wrong, but <i>why</i>.</p>
+  <div class="turns">
+    <div class="turn">
+      <div class="when"><b>Turn 1</b>10:09 AM<br><span class="chip bad" style="margin-top:6px">👎 Negative</span></div>
+      <div>
+        <div class="q">"I want to see top 20 providers driving the highest paid claims for Medicare line of business"</div>
+        <div class="kv"><span class="chip">2,000 rows returned</span><span class="chip">9.0 s · 841K rows read</span><span class="chip">ran as end user</span>
+          <span class="chip info">lineage: fact_claim_amount · gold_member_month · dim_provider</span></div>
+        <div style="font-size:13.5px;color:var(--muted)">Genie's reasoning: <i>"assumes 'MA' corresponds to Medicare Advantage"</i>. Answer: every provider shows the same <b>$304,943,284.44</b>. The SQL explains why:</div>
+<pre>INNER JOIN payer_demo.dim_provider
+  <span class="hl">ON 1 = 1</span>          -- no provider key on claims → cross join
+WHERE fact_claim_amount.lob ILIKE '%MA%'</pre>
+      </div>
+    </div>
+    <div class="turn">
+      <div class="when"><b>Turn 2</b>10:12 AM<br><span class="chip" style="margin-top:6px">no SQL</span></div>
+      <div>
+        <div class="q">"I only asked for top 20 providers and you have provided 2000 rows… how come all providers have the same total paid amount?"</div>
+        <div style="font-size:13.5px;color:var(--muted)">Genie: <i>"that result is invalid because there is no provider key in fact_claim_amount… the prior query effectively cross-joined providers."</i> → the trace points to a <b>data-model gap</b>, not a prompt problem.</div>
+      </div>
+    </div>
+    <div class="turn">
+      <div class="when"><b>Turn 3</b>10:14 AM<br><span class="chip good" style="margin-top:6px">👍 Positive</span></div>
+      <div>
+        <div class="q">"I have added a new table fact_claim that links provider and claim…"</div>
+        <div class="kv"><span class="chip">20 rows returned</span><span class="chip">0.97 s</span>
+          <span class="chip info">lineage: fact_claim · fact_claim_amount · dim_provider</span></div>
+        <div style="font-size:13.5px;color:var(--muted)">Lineage confirms the new bridge table was used; the result is correct and rated positive.</div>
+      </div>
+    </div>
+  </div>
+  <div class="callout">A separate question — <i>"top 20 members"</i> — got a thumbs-down with the note <b>"You should ask a follow up on how you should retrieve the top 20 members."</b> The note text is captured alongside the rating, turning feedback into an actionable clarification rule for the agent author.</div>
+</section>
+
+<!-- ARCHITECTURE -->
+<section id="architecture">
+  <div class="eyebrow">Architecture</div>
+  <h2>Two source families, one scheduled job, two Delta tables, one app</h2>
+  <p class="sub">The Conversation API supplies the <b>text</b>; system tables supply <b>execution, lineage and audit</b>. A serverless job joins them on stable keys and MERGEs into a governed table.</p>
+  <div class="arch" role="img" aria-label="Genie Conversation API and system tables feed a scheduled ingest job that writes bronze and silver Delta tables, read by a Databricks App">
+    <div class="col">
+      <div class="stage">
+        <div class="hd"><span class="num">1</span><h3>Genie Conversation API</h3></div>
+        <div class="desc">REST, per agent · text, reasoning, SQL, feedback</div>
+        <div class="node"><div class="t mono">GET …/spaces/{id}/conversations?include_all=true</div><div class="d">every user's conversations (CAN MANAGE)</div></div>
+        <div class="node"><div class="t mono">GET …/conversations/{cid}/messages</div><div class="d">prompt, SQL attachments, reasoning, Chat answer</div></div>
+        <div class="node"><div class="t mono">GET /genie/agents/{id}/conversations/{cid}/items</div><div class="d">Agent mode: answer, reasoning, tool calls</div></div>
+        <div class="node"><div class="t mono">GET …/conversations/{cid}/list-comments</div><div class="d">feedback notes, review requests</div></div>
+        <div class="node"><div class="t mono">SCIM users.get(user_id)</div><div class="d">email fallback</div></div>
+      </div>
+      <div class="stage">
+        <div class="hd"><span class="num">1b</span><h3>System tables</h3></div>
+        <div class="desc">execution, lineage, audit · ~10–60 min latency</div>
+        <div class="node"><div class="t mono">system.query.history</div><div class="d">executed_by, duration, rows read, warehouse</div></div>
+        <div class="node"><div class="t mono">system.access.table_lineage</div><div class="d">tables + metric views per statement</div></div>
+        <div class="node"><div class="t mono">system.access.audit</div><div class="d">service aibiGenie: create event, IP, user agent</div></div>
+      </div>
+    </div>
+    <div class="conn"><b>→</b>REST +<br>SQL joins</div>
+    <div class="col"><div class="stage">
+      <div class="hd"><span class="num">2</span><h3>Ingest job</h3></div>
+      <div class="desc">Python notebook · Lakeflow Job · serverless</div>
+      <div class="node"><div class="t">Every 30 min · 2-day lookback</div><div class="d">1 concurrent run, retry on failure</div></div>
+      <div class="node"><div class="t">1 · Extract</div><div class="d">API calls per conversation → raw JSON to bronze</div></div>
+      <div class="node"><div class="t">2 · Flatten</div><div class="d">one row per message; agent steps grouped per turn</div></div>
+      <div class="node"><div class="t">3 · Enrich</div><div class="d">join system tables on statement_id / message_id</div></div>
+      <div class="node"><div class="t">4 · MERGE on message_id</div><div class="d">idempotent; late system-table rows fill in later</div></div>
+    </div></div>
+    <div class="conn"><b>→</b>append +<br>MERGE</div>
+    <div class="col"><div class="stage">
+      <div class="hd"><span class="num">3</span><h3>Unity Catalog · Delta</h3></div>
+      <div class="desc">&lt;catalog&gt;.genie_monitoring</div>
+      <div class="node"><div class="t mono">genie_api_raw</div><div class="d">Bronze · append-only raw payloads · survives conversation deletion</div></div>
+      <div class="node"><div class="t mono">message_trace</div><div class="d">Silver · one row per message, nested arrays, clustered by agent + time</div></div>
+      <div class="node"><div class="t">Governed like any table</div><div class="d">grants, row filters, column masks, retention</div></div>
+    </div></div>
+    <div class="conn"><b>→</b>SQL<br>warehouse</div>
+    <div class="col"><div class="stage">
+      <div class="hd"><span class="num">4</span><h3>Consumption</h3></div>
+      <div class="desc">Databricks App + anything that reads Delta</div>
+      <div class="node"><div class="t">Genie Monitor app</div><div class="d">AppKit (React/TypeScript) · filter by agent</div></div>
+      <div class="node"><div class="t">AI/BI dashboards &amp; alerts</div><div class="d">e.g., alert on thumbs-down spikes</div></div>
+      <div class="node"><div class="t">Benchmarks &amp; tuning</div><div class="d">turn real questions into agent benchmarks</div></div>
+    </div></div>
+  </div>
+  <h3 style="margin-top:26px">How the sources join</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>From</th><th>To</th><th>Adds</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">attachments[].query.statement_id</td><td class="mono">system.query.history.statement_id</td><td>who ran it, duration, rows, warehouse</td></tr>
+        <tr><td class="mono">statement_id</td><td class="mono">system.access.table_lineage.statement_id</td><td>tables / metric views read</td></tr>
+        <tr><td class="mono">message_id</td><td class="mono">system.access.audit (aibiGenie)</td><td>create event, IP, user agent, feedback time</td></tr>
+        <tr><td class="mono">user_id</td><td class="mono">SCIM users</td><td>email when the audit event is absent</td></tr>
+        <tr><td class="mono">items[].metadata.message_id</td><td class="mono">message_id</td><td>Agent-mode steps grouped per user turn</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- APP -->
+<section id="app">
+  <div class="eyebrow">The app</div>
+  <h2>A Monitor tab that works across every agent</h2>
+  <p class="sub">Filter by agent, period, rating, user or prompt text; click any question for its full trace. Illustration with anonymized sample data:</p>
+  <div class="mock" aria-label="Illustration of the Genie Monitor app">
+    <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+      <b style="margin-left:6px">Genie Monitor</b><span class="tab on">Monitor</span><span class="tab">Architecture</span>
+      <span class="chip" style="margin-left:auto">Reads as app service principal</span></div>
+    <div class="body">
+      <div class="filters">
+        <div class="sel"><small>Genie Agent</small>Health Plan Analytics Agent (130)</div>
+        <div class="sel"><small>Period</small>Last 7 days</div>
+        <div class="sel"><small>Rating</small>All ratings</div>
+        <div class="sel"><small>User</small>All users</div>
+      </div>
+      <div class="kpis">
+        <div class="kpi"><div class="s">Questions</div><div class="v">5</div><div class="s">3 conversations</div></div>
+        <div class="kpi"><div class="s">Users</div><div class="v">2</div><div class="s">last 7 days</div></div>
+        <div class="kpi"><div class="s">Thumbs up</div><div class="v" style="color:var(--good)">2</div><div class="s">40% of questions</div></div>
+        <div class="kpi"><div class="s">Thumbs down</div><div class="v" style="color:var(--bad)">2</div><div class="s">1 with notes</div></div>
+        <div class="kpi"><div class="s">Answered with SQL</div><div class="v">80%</div><div class="s">0 failed</div></div>
+        <div class="kpi"><div class="s">Median SQL time</div><div class="v">974 ms</div><div class="s">query history</div></div>
+      </div>
+      <div class="split">
+        <div>
+          <div style="font-size:12.5px;font-weight:600;margin-bottom:4px">Questions — newest first</div>
+          <div class="row"><span class="a">Nov 20, 10:37</span><span><span class="p">top 20 members</span><br><span class="a">The top 20 members returned by this result are…</span></span><span class="a">analyst.b@healthplan.example</span><span class="chip bad">👎 Negative</span><span class="a">1</span></div>
+          <div class="row"><span class="a">Nov 20, 10:35</span><span><span class="p">Which HEDIS measures are below the 4-Star threshold?</span><br><span class="a">There are 8 HEDIS measures below the threshold…</span></span><span class="a">analyst.b@healthplan.example</span><span class="chip good">👍 Positive</span><span class="a">1</span></div>
+          <div class="row"><span class="a">Nov 20, 10:14</span><span><span class="p">I have added a new table fact_claim…</span><br><span class="a">Here are the top 20 Medicare Advantage providers…</span></span><span class="a">analyst.a@healthplan.example</span><span class="chip good">👍 Positive</span><span class="a">1</span></div>
+          <div class="row"><span class="a">Nov 20, 10:09</span><span><span class="p">top 20 providers… medicare line of business</span><br><span class="a">Each provider shows $304,943,284.44…</span></span><span class="a">analyst.a@healthplan.example</span><span class="chip bad">👎 Negative</span><span class="a">1</span></div>
+          <div style="margin-top:12px">
+            <div style="font-size:12.5px;font-weight:600">Questions per day by feedback</div>
+            <div class="bars" aria-hidden="true">
+              <div class="b" style="height:40%"><i style="height:60%;background:var(--good)"></i><i style="height:40%;background:var(--bad)"></i></div>
+              <div class="b" style="height:65%"><i style="height:50%;background:var(--good)"></i><i style="height:25%;background:var(--bad)"></i><i style="height:25%;background:var(--faint)"></i></div>
+              <div class="b" style="height:30%"><i style="height:100%;background:var(--faint)"></i></div>
+              <div class="b" style="height:85%"><i style="height:40%;background:var(--good)"></i><i style="height:40%;background:var(--bad)"></i><i style="height:20%;background:var(--faint)"></i></div>
+            </div>
+            <div class="legend"><span><i style="background:var(--good)"></i>Positive</span><span><i style="background:var(--bad)"></i>Negative</span><span><i style="background:var(--faint)"></i>Not rated</span></div>
+          </div>
+        </div>
+        <div class="drawer">
+          <div style="display:flex;gap:6px;flex-wrap:wrap"><span class="chip">CHAT</span><span class="chip">COMPLETED</span><span class="chip bad">👎 Negative</span></div>
+          <div style="font-weight:600;margin-top:8px;font-size:13.5px">I want to see top 20 providers driving the highest paid claims…</div>
+          <div class="tabs"><span>Trace</span><span class="on">SQL (1)</span><span>Feedback</span><span>Audit</span></div>
+<pre style="font-size:11px">WITH claims_by_provider AS (
+  SELECT dim_provider.provider_id,
+         SUM(paid_amount) AS total_paid_amount, …
+  INNER JOIN dim_provider <span class="hl">ON 1 = 1</span>
+  WHERE lob ILIKE '%MA%' …</pre>
+          <table style="font-size:11.5px;margin-top:8px">
+            <tr><td style="color:var(--faint);padding:4px 0">Rows returned</td><td style="padding:4px 0;text-align:right">2,000</td></tr>
+            <tr><td style="color:var(--faint);padding:4px 0">Executed by</td><td style="padding:4px 0;text-align:right">analyst.a@healthplan.example</td></tr>
+            <tr><td style="color:var(--faint);padding:4px 0">Duration · rows read</td><td style="padding:4px 0;text-align:right">9.0 s · 841,293</td></tr>
+            <tr><td style="color:var(--faint);padding:4px 0;border:0">Lineage</td><td style="padding:4px 0;text-align:right;border:0">3 tables</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="grid g3" style="margin-top:16px">
+    <div class="card"><h3>Trace tab</h3><p>Prompt, Genie's reasoning (understanding, data sourcing, steps), Agent-mode tool calls, answer, and lineage chips — including metric views.</p></div>
+    <div class="card"><h3>SQL &amp; Feedback tabs</h3><p>Every generated query with execution stats; the rating plus every reviewer note with timestamp.</p></div>
+    <div class="card"><h3>Audit &amp; Architecture</h3><p>User, audit action, IP, user agent; plus a live architecture page showing ingest freshness and enrichment coverage.</p></div>
+  </div>
+</section>
+
+<!-- NATIVE VS BUILT -->
+<section id="native">
+  <div class="eyebrow">Native vs. built</div>
+  <h2>What Databricks provides natively — and what this adds</h2>
+  <div class="legendrow">
+    <span class="chip good">Doc-verified</span> checked against Databricks documentation
+    <span class="chip info">Validated</span> observed in a validation workspace
+    <span class="chip warn">Beta</span> feature in Beta at time of writing
+  </div>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Capability</th><th>Native today</th><th>This accelerator</th><th>Basis</th></tr></thead>
+      <tbody>
+        <tr><td><b>Who / when / which agent</b></td><td><code>system.access.audit</code>, service <code>aibiGenie</code> — IDs only, no prompt text</td><td>Joined onto each message row</td><td><span class="chip good">Doc-verified</span> <span class="chip info">Validated</span></td></tr>
+        <tr><td><b>SQL Genie executed</b></td><td><code>system.query.history</code> with <code>query_source.genie_space_id</code>; runs as the end user</td><td>Linked to the question via <code>statement_id</code></td><td><span class="chip good">Doc-verified</span> <span class="chip info">Validated</span></td></tr>
+        <tr><td><b>Tables / metric views used</b></td><td><code>system.access.table_lineage</code> with <code>entity_metadata.genie_space_id</code>; <code>METRIC_VIEW</code> source type</td><td>Per-message lineage list</td><td><span class="chip good">Doc-verified</span> <span class="chip info">Validated</span></td></tr>
+        <tr><td><b>Prompt &amp; answer text</b></td><td>Conversation API; Monitor tab in each agent (no bulk export documented)</td><td>Persisted in your Delta table, across all agents</td><td><span class="chip good">Doc-verified</span></td></tr>
+        <tr><td><b>Agent-mode reasoning &amp; tool calls</b></td><td>Conversation API "list conversation items"</td><td>Captured as ordered steps</td><td><span class="chip good">Doc-verified</span> <span class="chip info">Validated</span></td></tr>
+        <tr><td><b>Feedback notes</b></td><td>Stored as message comments in the agent</td><td>Rating + all notes per message</td><td><span class="chip info">Validated</span></td></tr>
+        <tr><td><b>Retention</b></td><td>System tables: 395 days free; account admins can set 30–3,650 days</td><td>Your table, your retention policy; raw copy survives conversation deletion</td><td><span class="chip good">Doc-verified</span></td></tr>
+        <tr><td><b>Genie One conversations</b></td><td>Unified trace table (OpenTelemetry spans, prompts + responses); does not include Genie Agent conversations</td><td>Complementary — covers Genie Agents</td><td><span class="chip good">Doc-verified</span> <span class="chip warn">Beta</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- DATA MODEL -->
+<section id="model">
+  <div class="eyebrow">Data model</div>
+  <h2><code style="font-size:.8em">message_trace</code> — one row per message</h2>
+  <div class="grid g2">
+    <div class="card">
+      <h3>Identity &amp; context</h3>
+      <p class="mono">space_id · space_title · conversation_id · conversation_type (CHAT | AGENT) · message_id · user_id · user_email · created_ts · status · error</p>
+      <h3 style="margin-top:14px">Content</h3>
+      <p class="mono">prompt_text · answer_text · thoughts[] · agent_steps[] · queries[]</p>
+    </div>
+    <div class="card">
+      <h3>Enrichment</h3>
+      <p class="mono">exec[] (executed_by, duration_ms, read_rows, produced_rows, warehouse_id, status) · lineage_sources[] (name, type)</p>
+      <h3 style="margin-top:14px">Feedback &amp; audit</h3>
+      <p class="mono">feedback_rating · feedback_comment · feedback_notes[] · feedback_ts · audit_create_ts · audit_create_action · source_ip · user_agent · raw_json · ingested_at</p>
+    </div>
+  </div>
+<pre>-- thumbs-down answers this week, with the reviewer note and the tables Genie used
+SELECT created_ts, user_email, prompt_text,
+       filter(feedback_notes, n -&gt; n.content IS NOT NULL)[0].content AS note,
+       transform(lineage_sources, l -&gt; l.name)                          AS tables_used
+FROM   &lt;catalog&gt;.genie_monitoring.message_trace
+WHERE  feedback_rating = 'NEGATIVE' AND created_ts &gt;= current_date() - INTERVAL 7 DAYS
+ORDER  BY created_ts DESC;</pre>
+</section>
+
+<!-- DEPLOY -->
+<section id="deploy">
+  <div class="eyebrow">Deploy</div>
+  <h2>Everything is code — four steps</h2>
+  <div class="grid g4">
+    <div class="card"><span class="chip accent">1</span><h3 style="margin-top:8px">Ingest notebook</h3><p>Python notebook imported to the workspace; parameters for agent ID, lookback and target schema.</p></div>
+    <div class="card"><span class="chip accent">2</span><h3 style="margin-top:8px">Scheduled job</h3><p>JSON job definition: serverless, every 30 minutes, single concurrent run, retry.</p></div>
+    <div class="card"><span class="chip accent">3</span><h3 style="margin-top:8px">Databricks App</h3><p>AppKit app with SQL query files; deployed with the Databricks CLI.</p></div>
+    <div class="card"><span class="chip accent">4</span><h3 style="margin-top:8px">Grants</h3><p>App service principal gets USE CATALOG, USE SCHEMA and SELECT on the monitoring schema only.</p></div>
+  </div>
+<pre>PROFILE=&lt;cli-profile&gt; ./scripts/deploy_all.sh          # notebook → job → app → grants
+databricks jobs run-now &lt;job_id&gt; \
+  --json '{"job_parameters":{"lookback_days":"0"}}'   # one-time backfill of history</pre>
+  <h3 style="margin-top:22px">Prerequisites</h3>
+  <ul class="clean">
+    <li>Unity Catalog workspace with system tables enabled (<code>access</code> and <code>query</code> schemas).</li>
+    <li>Job run-as identity with <b>CAN MANAGE</b> on each Genie Agent (required to list every user's conversations) and SELECT on the three system tables.</li>
+    <li>A SQL warehouse for the app; serverless compute for the job.</li>
+  </ul>
+</section>
+
+<!-- LIMITS -->
+<section id="limits">
+  <div class="eyebrow">Limits &amp; FAQ</div>
+  <h2>Known behaviour and design choices</h2>
+  <div class="grid g2">
+    <div class="card"><h3>Is it real-time?</h3><p>Near-real-time. Text and feedback arrive on the next run (≤30 min); execution, lineage and audit follow system-table latency (typically 10–60 min). The 2-day lookback fills them in automatically.</p></div>
+    <div class="card"><h3>Who can see the prompts?</h3><p>The table contains every user's questions. The reference app reads as its service principal, so gate it with app permissions — or switch to on-behalf-of-user access plus a Unity Catalog row filter on <code>space_id</code>.</p></div>
+    <div class="card"><h3>Questions routed from Genie One</h3><p>When Genie One routes a question into a Genie Agent, the agent-side message is captured, but the audit log has no Genie Agent "create" event; user identity is resolved from the user ID instead.</p></div>
+    <div class="card"><h3>What if a user deletes a conversation?</h3><p>Deletion in Genie removes it for everyone; the bronze table keeps the raw payload already ingested, so the record is retained under your policy.</p></div>
+    <div class="card"><h3>Scale</h3><p>API calls scale with conversations in the lookback window; each agent supports up to 200,000 conversations. For many agents, run one task per agent or loop over agents in the notebook.</p></div>
+    <div class="card"><h3>What about bias and answer quality?</h3><p>The trace makes interpretation issues visible (e.g. ambiguous "top" or "Medicare" mappings). Pair with Genie benchmarks and clarification rules to measure and improve over time.</p></div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Genie Agent Monitoring accelerator · reference solution built on documented Databricks capabilities (Genie Conversation API, Unity Catalog system tables, Lakeflow Jobs, Databricks Apps).
+  Sample data shown is synthetic and user identities are anonymized. Capability statements reflect Databricks documentation reviewed in November 2026; Beta features may change.
+</footer>
+
+</body>
+</html>

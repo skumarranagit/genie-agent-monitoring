@@ -1,0 +1,33 @@
+bundle:
+  name: genie-monitor
+
+variables:
+  sql_warehouse_id:
+    description: SQL Warehouse ID
+
+resources:
+  apps:
+    app:
+      name: "genie-monitor"
+      description: "Genie Agent monitoring: prompts, answers, SQL, execution, lineage, feedback"
+      source_code_path: ./
+
+      # Start the app automatically on deploy.
+      lifecycle:
+        started: true
+      # Uncomment to enable on behalf of user API scopes. Available scopes: sql, genie, files, model-serving
+      # user_api_scopes:
+      #   - sql
+
+      # The resources which this app has access to.
+      resources:
+        - name: sql-warehouse
+          sql_warehouse:
+            id: ${var.sql_warehouse_id}
+            permission: CAN_USE
+
+targets:
+  default:
+    default: true
+    # Host comes from your CLI profile (--profile). Pass the warehouse with
+    #   databricks apps deploy --var="sql_warehouse_id=<id>" --profile <profile>
