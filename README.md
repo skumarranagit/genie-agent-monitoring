@@ -1,5 +1,11 @@
 # Genie Agent monitoring
 
+> [!WARNING]
+> **Blueprint only — not for production as-is.** This is a reference implementation for learning and evaluation. It is
+> not an official Databricks product, is not covered by Databricks Support, and is provided "AS IS" without warranty.
+> It stores users' prompts and answers (potentially PII/PHI). Complete your own security, privacy, cost and dependency
+> review before any production use. See **[DISCLAIMER.md](DISCLAIMER.md)**.
+
 End-to-end trace for Genie Agents (formerly Genie spaces): **prompt → reasoning → SQL → execution → lineage → answer → feedback → audit**, in one Delta table, plus a Databricks App to browse it (like the Genie *Monitor* tab, across agents).
 
 ```

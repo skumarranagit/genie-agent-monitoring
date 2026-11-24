@@ -129,7 +129,7 @@ footer{max-width:1180px;margin:0 auto;padding:30px 24px 60px;color:var(--faint);
   <span class="brand"><i></i>Genie Agent Monitoring</span>
   <a href="#why">Why</a><a href="#captured">What's captured</a><a href="#trace">Sample trace</a>
   <a href="#architecture">Architecture</a><a href="#app">The app</a><a href="#native">Native vs. built</a>
-  <a href="#model">Data model</a><a href="#deploy">Deploy</a><a href="#limits">Limits &amp; FAQ</a>
+  <a href="#model">Data model</a><a href="#deploy">Deploy</a><a href="#limits">Limits &amp; FAQ</a><a href="#disclaimer">Disclaimer</a>
 </div></nav>
 
 <main>
@@ -144,7 +144,7 @@ footer{max-width:1180px;margin:0 auto;padding:30px 24px 60px;color:var(--faint);
     <span class="chip">Unity Catalog governed</span>
     <span class="chip">Serverless, every 30 min</span>
     <span class="chip">Chat &amp; Agent mode</span>
-    <span class="chip">Open source code you own</span>
+    <span class="chip warn">Blueprint reference code</span>
   </div>
   <div class="pipeline-strip" aria-label="Trace chain">
     <span class="step">Prompt</span><span class="arrow">→</span>
@@ -156,7 +156,7 @@ footer{max-width:1180px;margin:0 auto;padding:30px 24px 60px;color:var(--faint);
     <span class="step">Feedback</span><span class="arrow">→</span>
     <span class="step">Audit</span>
   </div>
-  <div class="callout"><b>What this is:</b> a field-built reference solution assembled from documented Databricks capabilities (Genie Conversation API, system tables, Lakeflow Jobs, Databricks Apps). It is <b>not</b> a separate Databricks product feature — you deploy and own the code.</div>
+  <div class="callout" style="border-left-color:var(--warn);background:color-mix(in srgb,var(--warn) 10%,transparent)"><b>Blueprint only — not for production as-is.</b> This is a field-built reference implementation assembled from documented Databricks capabilities (Genie Conversation API, system tables, Lakeflow Jobs, Databricks Apps). It is <b>not</b> an official Databricks product, is not covered by Databricks Support, and is provided "as is" without warranty. Review security, privacy, cost and dependencies before any production use — see <a href="#disclaimer">Disclaimer</a>.</div>
 </section>
 
 <!-- WHY -->
@@ -465,11 +465,23 @@ databricks jobs run-now &lt;job_id&gt; \
   </div>
 </section>
 
+<!-- DISCLAIMER -->
+<section id="disclaimer">
+  <div class="eyebrow">Disclaimer</div>
+  <h2>Blueprint, not a production deployment</h2>
+  <div class="grid g2">
+    <div class="card"><h3>Reference implementation</h3><p>For learning and evaluation. Not an official Databricks product or feature, not covered by Databricks Support, no SLA. Provided "as is" without warranty of any kind; you are responsible for any deployment and its outcome.</p></div>
+    <div class="card"><h3>Before production</h3><p>Complete security, privacy and architecture review; add tests, error handling and rate-limit back-off; deploy through CI/CD with dev/test/prod; run as a least-privilege service principal; validate scale and cost.</p></div>
+    <div class="card"><h3>Sensitive data</h3><p>The trace tables hold every user's prompts, answers, SQL, result previews, feedback, identity and IP — potentially PII/PHI. Apply grants, row filters, column masks and a retention/erasure policy; raw payloads are kept even after a conversation is deleted in Genie.</p></div>
+    <div class="card"><h3>Dependencies &amp; platform changes</h3><p>The app uses open-source npm packages with known advisories at publication time — run <code>npm audit</code> and remediate. Some referenced capabilities are Preview/Beta and some behaviours are observed rather than documented; both can change.</p></div>
+  </div>
+</section>
+
 </main>
 
 <footer>
-  Genie Agent Monitoring accelerator · reference solution built on documented Databricks capabilities (Genie Conversation API, Unity Catalog system tables, Lakeflow Jobs, Databricks Apps).
-  Sample data shown is synthetic and user identities are anonymized. Capability statements reflect Databricks documentation reviewed in November 2026; Beta features may change.
+  <b>Blueprint / reference implementation — not for production use as-is.</b> Not an official Databricks product; not covered by Databricks Support; provided "as is" without warranty.
+  Built on documented Databricks capabilities (Genie Conversation API, Unity Catalog system tables, Lakeflow Jobs, Databricks Apps). Sample data is synthetic and user identities are anonymized; figures are illustrative, not benchmarks. Capability statements reflect Databricks documentation reviewed in November 2026; Preview/Beta features may change. Databricks, Genie, Unity Catalog and Delta Lake are trademarks of Databricks, Inc.
 </footer>
 
 </body>
