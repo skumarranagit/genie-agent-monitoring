@@ -8,7 +8,7 @@ A Databricks App powered by [AppKit](https://developers.databricks.com/docs/appk
 
 ## Prerequisites
 
-- Node.js v22+ and npm
+- Node.js v22.23.4+ (pinned in `.nvmrc`) and npm
 - Databricks CLI (for deployment)
 - Access to a Databricks workspace
 

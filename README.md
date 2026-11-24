@@ -30,7 +30,7 @@ system.access.audit ─────┘                    │
 
 ## Deploy
 
-**Prerequisites:** Unity Catalog workspace with system tables enabled (`access`, `query`); Databricks CLI ≥ 1.0 with a profile; Node 20+ (for the app build).
+**Prerequisites:** Unity Catalog workspace with system tables enabled (`access`, `query`); Databricks CLI ≥ 1.0 with a profile; Node ≥ 22.23 (see `genie-monitor/.nvmrc`; for the app build).
 The identity that runs the job needs **CAN MANAGE** on the Genie Agent (to list every user's conversations) and SELECT on
 `system.query.history`, `system.access.table_lineage`, `system.access.audit`.
 

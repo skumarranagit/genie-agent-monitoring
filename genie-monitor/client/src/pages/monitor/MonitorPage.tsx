@@ -34,7 +34,7 @@ import {
   TableRow,
 } from '@databricks/appkit-ui/react';
 import { sql } from '@databricks/appkit-ui/js';
-import { useMemo, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { AlertCircle, Code2, MessageSquareText, Search, SearchX, StickyNote } from 'lucide-react';
 import { formatInt, formatMs, formatPct, formatTs, timeAgo, toBool } from '../../lib/format';
 import { resolveTokenColor } from '../../lib/tokenColor';
@@ -93,45 +93,36 @@ export function MonitorPage() {
   const [selected, setSelected] = useState<string | null>(null);
 
   const agents = useAnalyticsQuery('agents', {});
-  const usersParams = useMemo(() => ({ space_id: sql.string(fromSelect(space)) }), [space]);
+  const usersParams = { space_id: sql.string(fromSelect(space)) };
   const users = useAnalyticsQuery('users', usersParams);
 
-  const filters = useMemo(
-    () => ({
-      space_id: sql.string(fromSelect(space)),
-      days: sql.number(Number(days)),
-      rating: sql.string(fromSelect(rating)),
-      user_email: sql.string(fromSelect(user)),
-      search: sql.string(search.trim()),
-    }),
-    [space, days, rating, user, search],
-  );
+  // React Compiler memoizes these automatically
+  const filters = {
+    space_id: sql.string(fromSelect(space)),
+    days: sql.number(Number(days)),
+    rating: sql.string(fromSelect(rating)),
+    user_email: sql.string(fromSelect(user)),
+    search: sql.string(search.trim()),
+  };
   const kpis = useAnalyticsQuery('kpis', filters);
   const daily = useAnalyticsQuery('daily_feedback', filters);
   const messages = useAnalyticsQuery('messages', filters);
 
   const k = kpis.data?.[0];
   const periodLabel = PERIODS.find((p) => p.value === days)?.label.toLowerCase() ?? '';
-  const chartData = useMemo(
-    () =>
-      (daily.data ?? []).map((d) => ({
-        day: d.day,
-        Positive: Number(d.positive),
-        Negative: Number(d.negative),
-        'Not rated': Number(d.no_rating),
-      })),
-    [daily.data],
-  );
+  const chartData = (daily.data ?? []).map((d) => ({
+    day: d.day,
+    Positive: Number(d.positive),
+    Negative: Number(d.negative),
+    'Not rated': Number(d.no_rating),
+  }));
 
   // semantic tokens → rgb for ECharts (good = success, bad = destructive, none = muted)
-  const feedbackColors = useMemo(
-    () => [
-      resolveTokenColor('--success', 'rgb(16, 150, 110)'),
-      resolveTokenColor('--destructive', 'rgb(220, 50, 40)'),
-      resolveTokenColor('--muted-foreground', 'rgb(115, 115, 125)'),
-    ],
-    [],
-  );
+  const feedbackColors = [
+    resolveTokenColor('--success', 'rgb(16, 150, 110)'),
+    resolveTokenColor('--destructive', 'rgb(220, 50, 40)'),
+    resolveTokenColor('--muted-foreground', 'rgb(115, 115, 125)'),
+  ];
 
   const onSearch = (e: FormEvent) => {
     e.preventDefault();
@@ -157,7 +148,7 @@ export function MonitorPage() {
           </p>
         </div>
         <div className="text-right text-xs text-muted-foreground">
-          <div>Trace table refreshed {timeAgo(k?.last_ingested_ts)}</div>
+          <div>Latest trace update {timeAgo(k?.last_ingested_ts)} · changes only when there is new Genie activity</div>
           <div className="font-mono">main.genie_monitoring.message_trace</div>
         </div>
       </div>
@@ -257,7 +248,7 @@ export function MonitorPage() {
       ) : (
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
           {kpis.loading || !k ? (
-            Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="h-24 w-full" />)
+            ['k1', 'k2', 'k3', 'k4', 'k5', 'k6'].map((id) => <Skeleton key={id} className="h-24 w-full" />)
           ) : (
             <>
               <Kpi label="Questions" value={formatInt(k.messages)} sub={`${formatInt(k.conversations)} conversations · ${periodLabel}`} />
@@ -313,8 +304,8 @@ export function MonitorPage() {
         <CardContent>
           {messages.loading ? (
             <div className="space-y-2">
-              {Array.from({ length: 6 }, (_, i) => (
-                <Skeleton key={i} className="h-10 w-full" />
+              {['r1', 'r2', 'r3', 'r4', 'r5', 'r6'].map((id) => (
+                <Skeleton key={id} className="h-10 w-full" />
               ))}
             </div>
           ) : messages.error ? (

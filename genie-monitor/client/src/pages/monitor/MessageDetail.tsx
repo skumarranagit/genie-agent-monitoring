@@ -20,10 +20,23 @@ import {
   TabsTrigger,
 } from '@databricks/appkit-ui/react';
 import { sql } from '@databricks/appkit-ui/js';
-import { useMemo } from 'react';
 import { AlertCircle, Database, MessageSquare, ShieldCheck } from 'lucide-react';
 import { formatInt, formatMs, formatTs, isRecord, parseJsonArray, str } from '../../lib/format';
 import { RatingBadge } from './RatingBadge';
+
+/** Stable key for an agent step: type + tool name/call id + content prefix. */
+const stepKey = (s: Record<string, unknown>): string =>
+  [str(s, 'type'), str(s, 'name'), (str(s, 'arguments') || str(s, 'output')).slice(0, 80)].join('|');
+
+/** Screen-reader title for the drawer while its content isn't ready (Radix Dialog requires one). */
+function HiddenSheetHeader({ title, description }: { title: string; description: string }) {
+  return (
+    <SheetHeader className="sr-only">
+      <SheetTitle>{title}</SheetTitle>
+      <SheetDescription>{description}</SheetDescription>
+    </SheetHeader>
+  );
+}
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -52,12 +65,13 @@ function KV({ k, v }: { k: string; v: string }) {
 }
 
 export function MessageDetail({ messageId }: { messageId: string }) {
-  const params = useMemo(() => ({ message_id: sql.string(messageId) }), [messageId]);
+  const params = { message_id: sql.string(messageId) };
   const { data, loading, error } = useAnalyticsQuery('message_detail', params);
 
   if (loading)
     return (
       <div className="space-y-3 p-4">
+        <HiddenSheetHeader title="Loading message trace" description="Fetching prompt, SQL, lineage and feedback" />
         <Skeleton className="h-6 w-2/3" />
         <Skeleton className="h-24 w-full" />
         <Skeleton className="h-40 w-full" />
@@ -66,13 +80,20 @@ export function MessageDetail({ messageId }: { messageId: string }) {
   if (error)
     return (
       <Alert variant="destructive" className="m-4">
+        <HiddenSheetHeader title="Message trace unavailable" description="The trace for this message could not be loaded" />
         <AlertCircle className="h-4 w-4" />
         <AlertTitle>Couldn&apos;t load this message</AlertTitle>
         <AlertDescription>{String(error)}</AlertDescription>
       </Alert>
     );
   const row = data?.[0];
-  if (!row) return <p className="p-4 text-sm text-muted-foreground">Message not found in the trace table.</p>;
+  if (!row)
+    return (
+      <div className="p-4">
+        <HiddenSheetHeader title="Message not found" description="This message is not in the trace table" />
+        <p className="text-sm text-muted-foreground">Message not found in the trace table.</p>
+      </div>
+    );
   const r: Record<string, unknown> = { ...row };
 
   const thoughts = parseJsonArray(r.thoughts_json, isRecord);
@@ -112,8 +133,8 @@ export function MessageDetail({ messageId }: { messageId: string }) {
             {thoughts.length > 0 && (
               <Section title="Genie reasoning">
                 <div className="space-y-2">
-                  {thoughts.map((t, i) => (
-                    <div key={i} className="rounded-md border p-2">
+                  {thoughts.map((t) => (
+                    <div key={`${str(t, 'type')}-${str(t, 'content').slice(0, 80)}`} className="rounded-md border p-2">
                       <div className="text-xs font-medium text-muted-foreground">
                         {str(t, 'type').replace('THOUGHT_TYPE_', '').replace('_', ' ')}
                       </div>
@@ -127,7 +148,7 @@ export function MessageDetail({ messageId }: { messageId: string }) {
               <Section title="Agent steps">
                 <ol className="space-y-2">
                   {steps.map((s, i) => (
-                    <li key={i} className="rounded-md border p-2 text-sm">
+                    <li key={stepKey(s)} className="rounded-md border p-2 text-sm">
                       <span className="font-medium text-foreground">
                         {i + 1}. {str(s, 'type')}
                         {str(s, 'name') ? ` · ${str(s, 'name')}` : ''}
@@ -153,8 +174,8 @@ export function MessageDetail({ messageId }: { messageId: string }) {
             <Section title="Data used (lineage)">
               {lineage.length ? (
                 <div className="flex flex-wrap gap-2">
-                  {lineage.map((l, i) => (
-                    <Badge key={i} variant="outline" className="gap-1 font-mono text-xs">
+                  {lineage.map((l) => (
+                    <Badge key={`${str(l, 'name')}-${str(l, 'type')}`} variant="outline" className="gap-1 font-mono text-xs">
                       <Database className="h-3 w-3" />
                       {str(l, 'name')}
                       <span className="text-muted-foreground">{str(l, 'type')}</span>
@@ -174,7 +195,7 @@ export function MessageDetail({ messageId }: { messageId: string }) {
             {queries.map((q, i) => {
               const e = execById.get(str(q, 'statement_id'));
               return (
-                <Card key={i}>
+                <Card key={str(q, 'attachment_id') || str(q, 'statement_id') || `q-${i}`}>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm">{str(q, 'title') || `Query ${i + 1}`}</CardTitle>
                   </CardHeader>
@@ -211,7 +232,7 @@ export function MessageDetail({ messageId }: { messageId: string }) {
             </div>
             {notes.length === 0 && <p className="text-sm text-muted-foreground">No feedback notes on this message.</p>}
             {notes.map((n, i) => (
-              <div key={i} className="rounded-md border p-3">
+              <div key={str(n, 'comment_id') || `n-${i}`} className="rounded-md border p-3">
                 <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
                   <MessageSquare className="h-3 w-3" />
                   {formatTs(n.created_ts)}

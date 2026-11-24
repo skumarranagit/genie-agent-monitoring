@@ -49,9 +49,12 @@ Please read this before using any part of this repository.
 
 ## 6. Third-party dependencies
 
-- The app depends on open-source npm packages (via the AppKit template), each under its own license.
-- At the time of publishing, `npm audit` reported known vulnerabilities in the dependency tree (including high and critical
-  severity). **Run `npm audit`, upgrade, and follow your organization's software-supply-chain policy before deploying.**
+- The app depends on open-source npm packages (via the Databricks AppKit template), each under its own license.
+- At the time of publishing (**24 November 2026**, AppKit **0.104.1**), `npm audit` reported **0 known vulnerabilities**.
+  One npm `overrides` entry pins `gaxios` to `7.1.6` (a patch release) to remove a transitive `rimraf → glob → minimatch`
+  chain with published advisories; see `genie-monitor/package.json`.
+- New advisories are published continuously. **Run `npm audit` (and your organization's software-composition scan)
+  immediately before deploying, upgrade as needed, and follow your software-supply-chain policy.**
 
 ## 7. API and platform stability
 

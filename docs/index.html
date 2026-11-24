@@ -473,7 +473,7 @@ databricks jobs run-now &lt;job_id&gt; \
     <div class="card"><h3>Reference implementation</h3><p>For learning and evaluation. Not an official Databricks product or feature, not covered by Databricks Support, no SLA. Provided "as is" without warranty of any kind; you are responsible for any deployment and its outcome.</p></div>
     <div class="card"><h3>Before production</h3><p>Complete security, privacy and architecture review; add tests, error handling and rate-limit back-off; deploy through CI/CD with dev/test/prod; run as a least-privilege service principal; validate scale and cost.</p></div>
     <div class="card"><h3>Sensitive data</h3><p>The trace tables hold every user's prompts, answers, SQL, result previews, feedback, identity and IP — potentially PII/PHI. Apply grants, row filters, column masks and a retention/erasure policy; raw payloads are kept even after a conversation is deleted in Genie.</p></div>
-    <div class="card"><h3>Dependencies &amp; platform changes</h3><p>The app uses open-source npm packages with known advisories at publication time — run <code>npm audit</code> and remediate. Some referenced capabilities are Preview/Beta and some behaviours are observed rather than documented; both can change.</p></div>
+    <div class="card"><h3>Dependencies &amp; platform changes</h3><p>The app uses open-source npm packages; <code>npm audit</code> reported 0 known vulnerabilities at publication (Nov 2026), but new advisories appear continuously — re-scan before deploying. Some referenced capabilities are Preview/Beta and some behaviours are observed rather than documented; both can change.</p></div>
   </div>
 </section>
 

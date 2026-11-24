@@ -186,9 +186,11 @@ export function ArchitecturePage() {
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           <Card className="gap-1 py-4">
             <CardContent className="px-4">
-              <div className="text-xs text-muted-foreground">Last ingest</div>
+              <div className="text-xs text-muted-foreground">Latest trace update</div>
               <div className="text-xl font-semibold text-foreground">{timeAgo(s.last_ingested_ts)}</div>
-              <div className="text-xs text-muted-foreground">{formatTs(s.last_ingested_ts)} · {formatInt(s.ingest_runs)} runs</div>
+              <div className="text-xs text-muted-foreground">
+                {formatTs(s.last_ingested_ts)} · {formatInt(s.ingest_runs)} runs with new data · job runs every 30 min
+              </div>
             </CardContent>
           </Card>
           <Card className="gap-1 py-4">

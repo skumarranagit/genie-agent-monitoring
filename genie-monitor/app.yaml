@@ -1,4 +1,6 @@
 command: ['npm', 'run', 'start']
+health_check:
+  path: /health
 env:
   - name: DATABRICKS_WAREHOUSE_ID
     valueFrom: sql-warehouse
