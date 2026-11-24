@@ -34,6 +34,7 @@ Please read this before using any part of this repository.
   (e.g. on `prompt_text`, `answer_text`, `source_ip`), and a retention policy.
 - The bronze table (`genie_api_raw`) intentionally **retains raw payloads even after a user deletes a conversation in Genie**.
   Confirm this matches your retention and right-to-erasure obligations; add a purge process if needed.
+- See **[SECURITY.md](SECURITY.md)** for recommended grants, governed tags and ABAC policies.
 
 ## 4. Access model
 

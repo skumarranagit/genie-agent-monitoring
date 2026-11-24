@@ -129,7 +129,7 @@ footer{max-width:1180px;margin:0 auto;padding:30px 24px 60px;color:var(--faint);
   <span class="brand"><i></i>Genie Agent Monitoring</span>
   <a href="#why">Why</a><a href="#captured">What's captured</a><a href="#trace">Sample trace</a>
   <a href="#architecture">Architecture</a><a href="#app">The app</a><a href="#native">Native vs. built</a>
-  <a href="#model">Data model</a><a href="#deploy">Deploy</a><a href="#limits">Limits &amp; FAQ</a><a href="#disclaimer">Disclaimer</a>
+  <a href="#model">Data model</a><a href="#deploy">Deploy</a><a href="#limits">Limits &amp; FAQ</a><a href="#security">Security</a><a href="#disclaimer">Disclaimer</a>
 </div></nav>
 
 <main>
@@ -440,7 +440,8 @@ ORDER  BY created_ts DESC;</pre>
     <div class="card"><span class="chip accent">3</span><h3 style="margin-top:8px">Databricks App</h3><p>AppKit app with SQL query files; deployed with the Databricks CLI.</p></div>
     <div class="card"><span class="chip accent">4</span><h3 style="margin-top:8px">Grants</h3><p>App service principal gets USE CATALOG, USE SCHEMA and SELECT on the monitoring schema only.</p></div>
   </div>
-<pre>PROFILE=&lt;cli-profile&gt; ./scripts/deploy_all.sh          # notebook → job → app → grants
+<pre>PROFILE=&lt;cli-profile&gt; SPACE_ID=&lt;genie-space-id&gt; WAREHOUSE_ID=&lt;sql-warehouse-id&gt; \
+  ./scripts/deploy_all.sh                              # notebook → job → app → grants
 databricks jobs run-now &lt;job_id&gt; \
   --json '{"job_parameters":{"lookback_days":"0"}}'   # one-time backfill of history</pre>
   <h3 style="margin-top:22px">Prerequisites</h3>
@@ -457,12 +458,28 @@ databricks jobs run-now &lt;job_id&gt; \
   <h2>Known behaviour and design choices</h2>
   <div class="grid g2">
     <div class="card"><h3>Is it real-time?</h3><p>Near-real-time. Text and feedback arrive on the next run (≤30 min); execution, lineage and audit follow system-table latency (typically 10–60 min). The 2-day lookback fills them in automatically.</p></div>
-    <div class="card"><h3>Who can see the prompts?</h3><p>The table contains every user's questions. The reference app reads as its service principal, so gate it with app permissions — or switch to on-behalf-of-user access plus a Unity Catalog row filter on <code>space_id</code>.</p></div>
+    <div class="card"><h3>Who can see the prompts?</h3><p>The table contains every user's questions and copies of query results. The reference app reads as its service principal, so gate it with app permissions — and apply the grants, governed tags and ABAC policies in <a href="#security">Security &amp; access control</a>.</p></div>
     <div class="card"><h3>Questions routed from Genie One</h3><p>When Genie One routes a question into a Genie Agent, the agent-side message is captured, but the audit log has no Genie Agent "create" event; user identity is resolved from the user ID instead.</p></div>
     <div class="card"><h3>What if a user deletes a conversation?</h3><p>Deletion in Genie removes it for everyone; the bronze table keeps the raw payload already ingested, so the record is retained under your policy.</p></div>
     <div class="card"><h3>Scale</h3><p>API calls scale with conversations in the lookback window; each agent supports up to 200,000 conversations. For many agents, run one task per agent or loop over agents in the notebook.</p></div>
     <div class="card"><h3>What about bias and answer quality?</h3><p>The trace makes interpretation issues visible (e.g. ambiguous "top" or "Medicare" mappings). Pair with Genie benchmarks and clarification rules to measure and improve over time.</p></div>
   </div>
+</section>
+
+<!-- SECURITY -->
+<section id="security">
+  <div class="eyebrow">Security &amp; access control</div>
+  <h2>Recommended: treat the trace tables as sensitive by default</h2>
+  <p class="sub">The trace tables hold users' prompts, answers, identities and <b>copies of query results</b> — and those copies do <b>not</b> inherit the source tables' row filters or column masks. <b>Do not open them for general-purpose access.</b> These are recommendations; the blueprint ships with plain grants only.</p>
+  <div class="grid g3">
+    <div class="card"><span class="chip accent">1</span><h3 style="margin-top:8px">Lock down with grants</h3><p>Dedicated restricted schema. Access only for a reviewers group, the ingest job service principal and the app service principal — no broad groups. Owner = group or service principal.</p></div>
+    <div class="card"><span class="chip accent">2</span><h3 style="margin-top:8px">Tag sensitive columns</h3><p>Governed tags: <code>prompt</code> (prompt, feedback), <code>model_output</code> (answer, reasoning, agent steps with result rows), <code>identity</code> (email, IP, user agent), <code>raw</code> (raw payloads).</p></div>
+    <div class="card"><span class="chip accent">3</span><h3 style="margin-top:8px">Two ABAC policies</h3><p><b>Column mask:</b> redact tagged columns except for reviewers and the ingest job. <b>Row filter:</b> agent owners see only their own agents; everyone sees their own questions.</p></div>
+    <div class="card"><span class="chip accent">4</span><h3 style="margin-top:8px">Split the data model</h3><p><code>message_metrics</code> (IDs, ratings, SQL stats, lineage — shareable) and <code>message_content</code> (prompts, answers, steps, notes — reviewers only). Keeps masking simple.</p></div>
+    <div class="card"><span class="chip accent">5</span><h3 style="margin-top:8px">App respects ABAC</h3><p>Switch the app to on-behalf-of-user so each viewer sees only what policies allow — or at minimum restrict who can open the app.</p></div>
+    <div class="card"><span class="chip accent">6</span><h3 style="margin-top:8px">Test before production</h3><p>Query as a non-exempt user; confirm masks and filters apply and that the ingest job and app still work.</p></div>
+  </div>
+  <div class="callout" style="margin-top:16px"><b>Watch-outs (per Databricks ABAC docs):</b> put the ingest job in every policy's <code>EXCEPT</code>; only one row filter per table and one mask per column can apply to a user — overlaps (or manual filters/masks on the same table) block access; readers need serverless or DBR 16.4+; clones and Delta Sharing fail for non-exempt principals; add retention and a purge process. <b>Verify in your workspace:</b> SQL warehouse support, whether owners/admins bypass policies, and mask behaviour on writes and time travel. Full guidance: <code>SECURITY.md</code>.</div>
 </section>
 
 <!-- DISCLAIMER -->

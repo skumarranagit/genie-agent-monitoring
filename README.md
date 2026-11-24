@@ -6,6 +6,10 @@
 > It stores users' prompts and answers (potentially PII/PHI). Complete your own security, privacy, cost and dependency
 > review before any production use. See **[DISCLAIMER.md](DISCLAIMER.md)**.
 
+> [!IMPORTANT]
+> **Security & access control:** the trace tables hold users' prompts, identities and copies of query results.
+> Do not open them for general access. Follow the ABAC recommendations in **[SECURITY.md](SECURITY.md)**.
+
 End-to-end trace for Genie Agents (formerly Genie spaces): **prompt → reasoning → SQL → execution → lineage → answer → feedback → audit**, in one Delta table, plus a Databricks App to browse it (like the Genie *Monitor* tab, across agents).
 
 ```

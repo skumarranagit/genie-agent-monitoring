@@ -153,6 +153,16 @@ const GOTCHAS = [
   'Deleting a conversation in Genie deletes it for everyone — bronze keeps the raw copy.',
 ];
 
+const SECURITY_RECS = [
+  { title: 'Lock down with grants', detail: 'restricted schema; only a reviewers group, the ingest job SP and the app SP; group/SP as owner' },
+  { title: 'Tag sensitive columns', detail: 'governed tags: prompt, model_output (incl. result rows), identity (email, IP, user agent), raw payloads' },
+  { title: 'Two ABAC policies', detail: 'column mask on tagged columns except reviewers + ingest job; row filter so agent owners see only their agents' },
+  { title: 'Split the data model', detail: 'message_metrics (shareable) vs message_content (prompts, answers, steps — reviewers only)' },
+  { title: 'App respects ABAC', detail: 'switch to on-behalf-of-user, or at minimum restrict who can open the app' },
+  { title: 'Watch-outs', detail: 'ingest job in every EXCEPT; one row filter per table and one mask per column; serverless or DBR 16.4+' },
+  { title: 'Test before production', detail: 'query as a non-exempt user; confirm the ingest job and app still work' },
+];
+
 /* ---------- page ---------- */
 
 export function ArchitecturePage() {
@@ -281,6 +291,30 @@ export function ArchitecturePage() {
               ))}
             </TableBody>
           </Table>
+        </CardContent>
+      </Card>
+
+      {/* Security recommendations */}
+      <Card className="border-warning/40">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <ShieldCheck className="h-4 w-4 text-warning" /> Security &amp; access control (recommended)
+          </CardTitle>
+          <CardDescription>
+            These tables hold users&apos; prompts, identities and copies of query results that do not inherit the source
+            tables&apos; row filters or masks. Do not open them for general access. Recommendations only — not implemented
+            in this blueprint (see SECURITY.md).
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ol className="list-decimal space-y-1.5 pl-5 text-sm text-foreground">
+            {SECURITY_RECS.map((r) => (
+              <li key={r.title}>
+                <span className="font-medium">{r.title}</span>
+                <span className="text-muted-foreground"> — {r.detail}</span>
+              </li>
+            ))}
+          </ol>
         </CardContent>
       </Card>
 
