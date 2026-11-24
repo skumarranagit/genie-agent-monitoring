@@ -1,6 +1,6 @@
 import { createBrowserRouter, RouterProvider, NavLink, Outlet } from 'react-router';
 import { Badge } from '@databricks/appkit-ui/react';
-import { Activity } from 'lucide-react';
+import { Activity, TriangleAlert } from 'lucide-react';
 import { MonitorPage } from './pages/monitor/MonitorPage';
 import { ArchitecturePage } from './pages/architecture/ArchitecturePage';
 
@@ -27,6 +27,19 @@ function Layout() {
           Reads as app service principal
         </Badge>
       </header>
+      <div
+        role="note"
+        aria-label="Disclaimer"
+        className="flex items-start gap-2 border-b border-warning/40 bg-warning/10 px-4 py-2 text-xs text-foreground md:px-6"
+      >
+        <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" aria-hidden="true" />
+        <p>
+          <span className="font-semibold">Blueprint only — not for production as-is.</span> Reference implementation for
+          learning and evaluation; not an official Databricks product, not covered by Databricks Support, provided &quot;as is&quot;
+          without warranty. Shows users&apos; prompts and answers (may include PII/PHI) — review security, privacy, cost and
+          dependencies before any production use. See DISCLAIMER.md in the repository.
+        </p>
+      </div>
       <main className="flex-1 p-4 md:p-6">
         <Outlet />
       </main>
